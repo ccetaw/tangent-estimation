@@ -1,5 +1,5 @@
 import taichi as ti
-from taichi.math import atan2, acos, cos, sin, vec3, pi, vec4, mat4, length, dot
+from taichi.math import atan2, acos, cos, sin, vec3, pi, vec2, vec4, mat4, length, dot, clamp
 
 @ti.func
 def sphere_analytic_normal(o, p):
@@ -119,3 +119,27 @@ def sd_bunny(p: vec3) -> float:
         sd = dot(f00,vec4(.09,.12,-.07,-.03))+dot(f01,vec4(-.04,.07,-.08,.05))+dot(f02,vec4(-.01,.06,-.02,.07))+dot(f03,vec4(-.05,.07,.03,.04))-0.16
 
     return sd
+
+@ti.func
+def build_orthonomal_basis(w3: vec3) -> tuple[vec3, vec3]:
+    """
+    Building an Orthonormal Basis from a 3D Unit Vector Without Normalization
+    Jeppe Revall Frisvad. Building an orthonormal basis from a 3d unit vector without normalization.
+    Journal of Graphics Tools, 16(3):151–159, 2012.
+    """
+    w1 = vec3(0)
+    w2 = vec3(0)
+    if (w3.z < -0.9999999):
+        w1 = vec3(0.0, -1.0, 0.0)
+        w2 = vec3(-1.0, 0.0, 0.0)
+    else:
+        a = 1.0 / (1.0 + w3.z)
+        b = -w3.x * w3.y * a
+        w1 = vec3(1 - w3.x * w3.x * a, b, -w3.x)
+        w2 = vec3(b, 1 - w3.y * w3.y * a, -w3.y)
+    
+    return w1, w2
+
+@ti.func
+def weight_func(x: float):
+    return clamp(1 - x**2, xmin=0)

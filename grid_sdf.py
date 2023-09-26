@@ -1,5 +1,5 @@
 import taichi as ti
-from taichi.math import vec3, mat4, sin, vec4, dot, length, clamp
+from taichi.math import vec3, clamp
 from utils import trilerp
 
 @ti.data_oriented
@@ -12,19 +12,31 @@ class GridSDF:
         self.sdf = sdf
 
         self.density = ti.field(shape=(res, res, res), dtype=float)
+        self.points = vec3.field(shape=(res, res, res))
         self.numeric_gradient = vec3.field(shape=(res, res, res))
 
     @ti.func
     def ijk2p(self, i, j, k):
         return self.lb + vec3(i,j,k) * self.units
+    
+    @ti.func
+    def p2ijk(self, p):
+        x = clamp(p, xmin=self.lb, xmax=self.rt-0.001)
+        x -= self.lb
+        x /= self.rt - self.lb
+        x = x * (self.res - 1)
+        x0 = ti.cast(x, int)
+        return x0.x, x0.y, x0.z
+
 
     @ti.kernel
     def init_field(self):
         """
-        Initialize a sphere sdf.
+        Initialize a signed distance field.
         """
         for i, j, k in self.density:
             p = self.ijk2p(i, j, k)
+            self.points[i,j,k] = p
             self.density[i,j,k] = self.sdf(p)
 
     @ti.kernel
