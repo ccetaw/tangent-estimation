@@ -142,4 +142,4 @@ def build_orthonomal_basis(w3: vec3) -> tuple[vec3, vec3]:
 
 @ti.func
 def weight_func(x: float):
-    return clamp(1 - x**2, xmin=0)
+    return clamp(1 - x**2, xmin=0, xmax=1)

@@ -1,6 +1,6 @@
 import taichi as ti
 import numpy as np
-from taichi.math import vec2, vec3, atan2, pi, acos, sin, cos, dot
+from taichi.math import vec2, vec3, atan2, pi, acos, sin, cos, dot, sqrt, mat2, normalize, length
 from grid_sdf import GridSDF
 from utils import *
 
@@ -12,7 +12,7 @@ r = 1.0
 res = 256
 lb = vec3(-1.5, -1.5, -1.5)
 rt = vec3(1.5, 1.5, 1.5)
-sdf = sd_bunny
+sdf = sd_sphere
 grid_sdf = GridSDF(lb, rt, res, sdf)
 grid_sdf.init_field()
 grid_sdf.calc_numeric_gradiant()
@@ -51,8 +51,8 @@ local_y = vec3.field(shape=2 * n_samples)
 
 # Tangent estimation config
 local_r = 0.1 * r
-n_voxel = int(local_r / grid_sdf.units.min() + 1)
-eps = 1e-3
+n_voxel = int(local_r / grid_sdf.units.min())
+eps = 1e-2
 neighbors = vec2.field(shape=(2*n_voxel+1, 2*n_voxel+1, 2*n_voxel+1), offset=(-n_voxel, -n_voxel, -n_voxel))
 
 
@@ -86,22 +86,31 @@ def init_render_sample():
                         # project to tangent plane
                         p = p - dot(p, tmp_normals[m]) * tmp_normals[m]
                         uv = vec2(dot(p, u), dot(p, v))
-                        # print(uv)
                         neighbors[i, j, k]= uv
-                        # centroid += uv
-        # centroid /= (2*n_voxel+1)**3
-        # C = mat4(0)
-        # for i in range(-n_voxel, n_voxel+1):
-        #     for j in range(-n_voxel, n_voxel+1):
-        #         for k in range(-n_voxel, n_voxel+1):
-        #             xi = neighbors[i, j, k]
-                    # C[0] = 
-                    # C[1] = 
-                    # C[2] = 
-                    # C[3] = 
+                        centroid += uv
+        centroid /= (2*n_voxel+1)**3
+        C = mat2(0)
+        for i in range(-n_voxel, n_voxel+1):
+            for j in range(-n_voxel, n_voxel+1):
+                for k in range(-n_voxel, n_voxel+1):
+                    xi = neighbors[i, j, k] - centroid
+                    weight = weight_func(length(xi)/local_r)
+                    C[0, 0] = xi.x * xi.x 
+                    C[0, 1] = xi.x * xi.y
+                    C[1, 0] = xi.y * xi.x
+                    C[1, 1] = xi.y * xi.y
+
+        tr = C[0, 0] + C[1, 1]
+        det = C[0, 0]*C[1, 1] - C[0, 1]*C[1, 0]
+        lmd_1 = 0.5 * tr - sqrt(0.25 * tr * tr - det)
+        lmd_2 = 0.5 * tr + sqrt(0.25 * tr * tr - det)
+        LMD_1 = vec2(C[0, 1], lmd_1 - C[0, 0])
+        LMD_2 = vec2(C[0, 1], lmd_2 - C[0, 0])
+
+        tangents[2*n+1] = tangents[2*n] + 0.1 * r * normalize(LMD_1.x * u + LMD_1.y * v)
+        bitangents[2*n+1] = bitangents[2*n] + 0.1 * r * normalize(LMD_2.x * u + LMD_2.y * v)
 
 
-        
 
 init_render_sample()
 
@@ -144,7 +153,7 @@ x_axis[1], y_axis[1], z_axis[1] = vec3(3, 0, 0), vec3(0, 3, 0), vec3(0, 0 ,3)
 
 
 t = 0
-step = 0.01
+step = 0.001
 while window.running:
     camera.position(3*sin(t), 3*cos(t), sin(t))
     scene.set_camera(camera)
@@ -161,8 +170,8 @@ while window.running:
     scene.lines(normals, width=1, color=(0.8, 0.2, 0.4))
     scene.lines(local_x, width=1, color=(0.4, 0.8, 0.2))
     scene.lines(local_y, width=1, color=(0.2, 0.4, 0.8))
-    # scene.lines(tangents, width=1, color=(0.1, 0.1, 0.9))
-    # scene.lines(bitangents, width=1, color=(0.1, 0.9, 0.1))
+    scene.lines(tangents, width=1, color=(0.2, 0.8, 0.8))
+    scene.lines(bitangents, width=1, color=(0.8, 0.2, 0.8))
     canvas.scene(scene)
     window.show()
     t += step
