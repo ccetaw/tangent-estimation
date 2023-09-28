@@ -12,7 +12,7 @@ r = 1.0
 res = 256
 lb = vec3(-1.5, -1.5, -1.5)
 rt = vec3(1.5, 1.5, 1.5)
-sdf = sd_sphere
+sdf = sd_bunny
 grid_sdf = GridSDF(lb, rt, res, sdf)
 grid_sdf.init_field()
 grid_sdf.calc_numeric_gradiant()
@@ -89,16 +89,16 @@ def init_render_sample():
                         neighbors[i, j, k]= uv
                         centroid += uv
         centroid /= (2*n_voxel+1)**3
-        C = mat2(0)
+        C = mat2(0.0, 0.0, 0.0, 0.0)
         for i in range(-n_voxel, n_voxel+1):
             for j in range(-n_voxel, n_voxel+1):
                 for k in range(-n_voxel, n_voxel+1):
                     xi = neighbors[i, j, k] - centroid
                     weight = weight_func(length(xi)/local_r)
-                    C[0, 0] = xi.x * xi.x 
-                    C[0, 1] = xi.x * xi.y
-                    C[1, 0] = xi.y * xi.x
-                    C[1, 1] = xi.y * xi.y
+                    C[0, 0] += xi.x * xi.x * weight
+                    C[0, 1] += xi.x * xi.y * weight
+                    C[1, 0] += xi.y * xi.x * weight
+                    C[1, 1] += xi.y * xi.y * weight
 
         tr = C[0, 0] + C[1, 1]
         det = C[0, 0]*C[1, 1] - C[0, 1]*C[1, 0]
@@ -167,9 +167,9 @@ while window.running:
     scene.lines(x_axis, width=3, color=(0.1, 0.1, 0.9))
     scene.lines(y_axis, width=3, color=(0.1, 0.9, 0.1))
     scene.lines(z_axis, width=3, color=(0.9, 0.1, 0.1))
-    scene.lines(normals, width=1, color=(0.8, 0.2, 0.4))
-    scene.lines(local_x, width=1, color=(0.4, 0.8, 0.2))
-    scene.lines(local_y, width=1, color=(0.2, 0.4, 0.8))
+    scene.lines(normals, width=1, color=(0.8, 0.2, 0.2))
+    scene.lines(local_x, width=1, color=(0.2, 0.2, 0.8))
+    scene.lines(local_y, width=1, color=(0.2, 0.8, 0.2))
     scene.lines(tangents, width=1, color=(0.2, 0.8, 0.8))
     scene.lines(bitangents, width=1, color=(0.8, 0.2, 0.8))
     canvas.scene(scene)
